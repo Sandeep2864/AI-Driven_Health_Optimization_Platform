@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>HHARS — AI-Powered Wellness Assistant</title>
+  <link rel="stylesheet" href="static/style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img src="/static/logo.png" alt="Logo" onerror="this.style.display='none'">
+        <h1>HHARS</h1>
+        <p class="subtitle">AI Health & Nutrition Assistant</p>
+      </div>
+
+      <form id="userForm" class="controls" autocomplete="off">
+        <h2>Tell me about you</h2>
+        <div class="row">
+          <label>Age
+            <input name="age" type="number" min="1" value="30">
+          </label>
+          <label>Gender
+            <select name="gender">
+              <option>Male</option><option>Female</option><option>Other</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="row">
+          <label>BMI
+            <input name="bmi" type="number" step="0.1" value="24">
+          </label>
+          <label>Daily Steps
+            <input name="daily_steps" type="number" value="3000">
+          </label>
+        </div>
+
+        <div class="row">
+          <label>Exercise freq (per week)
+            <input name="exercise_freq" type="number" value="3">
+          </label>
+          <label>Sleep hrs
+            <input name="sleep_hours" type="number" step="0.1" value="7">
+          </label>
+        </div>
+
+        <label>Dietary habit
+          <select name="diet">
+            <option>Vegetarian</option>
+            <option>Vegan</option>
+            <option>Pescatarian</option>
+            <option>Regular</option>
+            <option>Keto</option>
+          </select>
+        </label>
+
+        <label>Chronic condition
+          <select name="chronic">
+            <option>None</option>
+            <option>Diabetes</option>
+            <option>Hypertension</option>
+            <option>Heart Disease</option>
+            <option>PCOS</option>
+          </select>
+        </label>
+
+        <label>Allergies (comma separated)
+          <input name="allergies" placeholder="Dairy, Nuts, Shellfish">
+        </label>
+
+        <label>Preferred cuisines
+          <div class="location-container">
+            <input name="cuisine" placeholder="e.g. Kerala, West Bengal">
+            <button type="button" id="detectLocationBtn" class="location-btn">
+              <i class="fas fa-map-marker-alt"></i> Detect My Location
+            </button>
+          </div>
+        </label>
+
+        <div class="actions">
+          <button id="getBtn" type="button" class="primary-btn">
+            <span class="btn-text">Get Recommendation</span>
+            <span class="btn-loader hidden"></span>
+          </button>
+          <button id="clearBtn" type="button" class="muted">Reset</button>
+        </div>
+
+        <p class="footnote">Note: This AI assistant provides dietary suggestions only.</p>
+      </form>
+
+      <div class="models">
+        <h3>Powered by AI</h3>
+        <ul>
+          <li><strong>Health Analysis:</strong> Gradient Boosting Models</li>
+          <li><strong>Risk Assessment:</strong> Random Forest Classifier</li>
+          <li><strong>Meal Planning:</strong> Hybrid Recommendation Engine</li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main">
+      <button id="aboutBtn" class="about-btn">
+        <i class="fas fa-info-circle"></i>
+      </button>
+
+      <div class="chat">
+        <div id="chatArea" class="chat-area">
+          <div class="bot-message animate__animated animate__fadeIn">
+            <div class="avatar">🤖</div>
+            <div class="bubble">
+              <strong>Hello — I'm your AI nutrition assistant</strong>
+              <p>Share your health details and I'll create a personalized 7-day meal plan optimized for your wellness goals and dietary preferences.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="resultsPanel" class="results-panel hidden">
+          <div id="loadingBar" class="loading-bar hidden">
+            <div class="loading-progress"></div>
+          </div>
+
+          <section class="summary">
+            <h2>Health Analysis</h2>
+            <div id="riskBadge" class="risk low">Risk: Analyzing...</div>
+            <div class="metrics-grid">
+              <div><label>Calories</label><div id="calories" class="metric-value">—</div></div>
+              <div><label>Protein (g)</label><div id="protein" class="metric-value">—</div></div>
+              <div><label>Carbs (g)</label><div id="carbs" class="metric-value">—</div></div>
+              <div><label>Fats (g)</label><div id="fats" class="metric-value">—</div></div>
+            </div>
+          </section>
+
+          <section id="nearbyDishes" class="nearby-dishes hidden">
+            <h2>Dishes Near You</h2>
+            <div id="dishesGrid" class="dishes-grid"></div>
+          </section>
+
+          <section class="plan">
+            <h2>Your AI-Generated Meal Plan</h2>
+            <div id="weekGrid" class="week-grid">
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Results Toggle Button -->
+  <button id="resultsToggleBtn" class="results-toggle-btn collapsed">
+    <i class="fas fa-chevron-up"></i>
+  </button>
+
+  <div id="aboutModal" class="about-modal-overlay hidden">
+    <div class="about-modal-content">
+      <button id="closeModalBtn" class="close-btn"><i class="fas fa-times"></i></button>
+      <h2>About HHARS</h2>
+      <div class="modal-body">
+        <p>This AI-powered wellness assistant, <strong>HHARS</strong>, was built with passion and precision by <strong>Sandeep and Sadiya</strong>.</p>
+
+        <section class="modal-section">
+          <h3>Key Features</h3>
+          <ul>
+            <li><strong>Personalized Meal Plans:</strong> Get a custom 7-day meal plan based on your unique health profile.</li>
+            <li><strong>Health Analysis:</strong> Receive an instant health risk assessment and key nutritional metrics (calories, protein, carbs, fats).</li>
+            <li><strong>Local Recommendations:</strong> Discover dishes near you that fit your dietary preferences.</li>
+            <li><strong>AI-Powered Insights:</strong> The system leverages advanced machine learning models to provide data-driven recommendations.</li>
+          </ul>
+        </section>
+
+        <section class="modal-section">
+          <h3>How the Model Works</h3>
+          <p>Our assistant uses a hybrid approach combining several machine learning models:</p>
+          <ul>
+            <li><strong>Health Analysis:</strong> A <strong>Gradient Boosting Model</strong> analyzes your inputs (age, BMI, habits) to determine your optimal daily intake of calories and macronutrients.</li>
+            <li><strong>Risk Assessment:</strong> A <strong>Random Forest Classifier</strong> evaluates your health data against a large dataset to predict a generalized health risk level (Low, Medium, High).</li>
+            <li><strong>Meal Planning:</strong> A <strong>Hybrid Recommendation Engine</strong> then takes the model outputs and your preferences (diet, allergies, cuisine) to generate a balanced and personalized 7-day meal plan from our food database.</li>
+          </ul>
+        </section>
+
+        <section class="modal-section">
+          <h3>Dataset and Privacy</h3>
+          <p>The models were trained on a diverse and comprehensive dataset of food items and their nutritional values, as well as synthetic health profiles to ensure robust and unbiased predictions. Your data is used strictly for generating your personalized recommendation within this session and is not stored or shared.</p>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Results Toggle Button
+    const resultsToggleBtn = document.getElementById('resultsToggleBtn');
+    const resultsPanel = document.getElementById('resultsPanel');
+    const chatArea = document.getElementById('chatArea');
+
+    resultsToggleBtn.addEventListener('click', () => {
+      if (resultsToggleBtn.classList.contains('collapsed')) {
+        // Expand the results panel
+        resultsToggleBtn.classList.remove('collapsed');
+        resultsToggleBtn.classList.add('expanded');
+        resultsPanel.classList.remove('hidden');
+        document.body.classList.add('results-expanded');
+        document.body.classList.remove('results-collapsed');
+      } else {
+        // Collapse the results panel
+        resultsToggleBtn.classList.remove('expanded');
+        resultsToggleBtn.classList.add('collapsed');
+        resultsPanel.classList.add('hidden');
+        document.body.classList.add('results-collapsed');
+        document.body.classList.remove('results-expanded');
+      }
+    });
+
+    // Initially hide the toggle button until results are generated
+    resultsToggleBtn.style.display = 'none';
+
+    // Location detection
+    document.getElementById('detectLocationBtn').addEventListener('click', async () => {
+      try {
+        const response = await fetch('/detect_location');
+        const location = await response.json();
+
+        if (location.error) {
+          alert(`Location detection failed: ${location.error}`);
+          return;
+        }
+
+        // Show detected location in chat
+        const message = document.createElement('div');
+        message.className = 'bot-message animate__animated animate__fadeIn';
+        message.innerHTML = `
+          <div class="avatar">📍</div>
+          <div class="bubble">
+            <strong>Detected your location</strong>
+            <p>We found dishes near ${location.state}, ${location.country}</p>
+          </div>
+        `;
+        chatArea.appendChild(message);
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        // Set location in form
+        document.querySelector('input[name="cuisine"]').value = location.state;
+
+      } catch (error) {
+        alert('Failed to detect location. Please try again or enter manually.');
+      }
+    });
+
+    // Helper: create card for a day
+    function createDayCard(dayIndex, meals) {
+      const card = document.createElement('div');
+      card.className = 'day-card animate__animated animate__fadeIn';
+      card.style.animation
+
+      card.style.animationDelay = `${dayIndex * 0.1}s`;
+      const title = document.createElement('div');
+      title.className = 'day-title';
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      title.innerText = days[dayIndex % 7];
+      card.appendChild(title);
+
+      const list = document.createElement('div');
+      list.className = 'meal-list';
+      let caloriesTotal = 0;
+      let proteinTotal = 0;
+      let carbsTotal = 0;
+      let fatsTotal = 0;
+
+      meals.forEach((m, i) => {
+        const item = document.createElement('div');
+        item.className = 'meal-item animate__animated animate__fadeInUp';
+        item.style.animationDelay = `${i * 0.05}s`;
+
+        const name = document.createElement('div');
+        name.className = 'meal-name';
+        name.innerText = m.name || m['Food Name'] || 'Custom Meal';
+
+        const meta = document.createElement('div');
+        meta.className = 'meal-meta';
+
+        const calories = m.calories || m['Total Calories'] || 0;
+        const protein = m.protein || m['Total Protein'] || 0;
+        const carbs = m.carbs || m['Total Carbs'] || 0;
+        const fats = m.fats || m['Total Fats'] || 0;
+
+        meta.innerHTML = `
+          <span>${calories} kcal</span>
+          <div class="macro-pills">
+            <span class="pill protein">${protein}g protein</span>
+            <span class="pill carbs">${carbs}g carbs</span>
+            <span class="pill fats">${fats}g fats</span>
+          </div>
+        `;
+
+        caloriesTotal += Number(calories);
+        proteinTotal += Number(protein);
+        carbsTotal += Number(carbs);
+        fatsTotal += Number(fats);
+
+        item.appendChild(name);
+        item.appendChild(meta);
+        list.appendChild(item);
+      });
+
+      const footer = document.createElement('div');
+      footer.className = 'day-footer';
+      footer.innerHTML = `
+        <div class="day-totals">
+          <span>Total: ${caloriesTotal} kcal</span>
+          <span class="macro-totals">
+            <span>${proteinTotal}g protein</span>
+            <span>${carbsTotal}g carbs</span>
+            <span>${fatsTotal}g fats</span>
+          </span>
+        </div>
+      `;
+
+      card.appendChild(list);
+      card.appendChild(footer);
+      return card;
+    }
+
+    // Function to create dish cards for nearby dishes section
+    function createDishCard(dish) {
+      const card = document.createElement('div');
+      card.className = 'dish-card';
+      card.innerHTML = `
+        <div class="dish-name">${dish['Food Name'] || dish.name}</div>
+        <div class="dish-meta">
+          <span class="dish-type">${dish.Type || dish.type}</span>
+          <span class="dish-state">${dish.State || dish.state}</span>
+        </div>
+      `;
+      return card;
+    }
+
+    async function runRecommendation(){
+      const form = document.getElementById('userForm');
+      const data = Object.fromEntries(new FormData(form).entries());
+
+      // Show loading state
+      const getBtn = document.getElementById('getBtn');
+      getBtn.disabled = true;
+      document.querySelector('.btn-text').classList.add('hidden');
+      document.querySelector('.btn-loader').classList.remove('hidden');
+
+      // Show loading bar
+      const loadingBar = document.getElementById('loadingBar');
+      loadingBar.classList.remove('hidden');
+      const loadingProgress = loadingBar.querySelector('.loading-progress');
+
+      // Simulate AI processing with progress animation
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if(progress >= 100) progress = 100;
+        loadingProgress.style.width = `${progress}%`;
+      }, 200);
+
+      // Update chat UI
+      const chatArea = document.getElementById('chatArea');
+      const message = document.createElement('div');
+      message.className = 'user-message animate__animated animate__fadeIn';
+      message.innerHTML = '<div class="bubble">Analyzing my health profile...</div>';
+      chatArea.appendChild(message);
+      chatArea.scrollTop = chatArea.scrollHeight;
+
+      try {
+        // Add slight delay to simulate AI processing (3 seconds)
+        await new Promise(resolve => setTimeout(resolve, 3000));
+
+        // Call /predict
+        const resp = await fetch('/predict', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(data)
+        });
+
+        if(!resp.ok) throw new Error('Prediction failed: '+resp.statusText);
+        const pred = await resp.json();
+
+        // Show "AI is thinking" message
+        const thinkingMsg = document.createElement('div');
+        thinkingMsg.className = 'bot-message animate__animated animate__fadeIn';
+        thinkingMsg.innerHTML = `
+          <div class="avatar">🤖</div>
+          <div class="bubble">
+            <strong>Analyzing your profile...</strong>
+            <p class="typing-animation">Generating personalized recommendations<span class="dots"></span></p>
+          </div>
+        `;
+        chatArea.appendChild(thinkingMsg);
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        // Format prediction for display
+        const rec = pred.recommended || {};
+        document.getElementById('calories').innerText = Math.round(rec.Recommended_Calories || rec.RecommendedCalories || 0);
+        document.getElementById('protein').innerText = Math.round(rec.Recommended_Protein || rec.RecommendedProtein || 0);
+        document.getElementById('carbs').innerText = Math.round(rec.Recommended_Carbs || rec.RecommendedCarbs || 0);
+        document.getElementById('fats').innerText = Math.round(rec.Recommended_Fats || rec.RecommendedFats || 0);
+
+        // Update risk badge
+        const label = pred.health_label || 'Unknown';
+        const score = pred.health_score !== undefined ? ` (${pred.health_score}/100)` : '';
+        const riskBadge = document.getElementById('riskBadge');
+        riskBadge.innerText = label + score;
+
+        // Style colors based on label
+        const lower = label.toLowerCase();
+        if (lower.includes('excellent')) riskBadge.className = 'risk low';
+        else if (lower.includes('good')) riskBadge.className = 'risk medium';
+        else if (lower.includes('average')) riskBadge.className = 'risk medium';
+        else if (lower.includes('poor') || lower.includes('high')) riskBadge.className = 'risk high';
+        else riskBadge.className = 'risk low';
+
+        // Call /recommend (include recommended)
+        const payload = {...data, recommended: rec};
+        const resp2 = await fetch('/recommend', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+
+        if(!resp2.ok) throw new Error('Recommendation failed: ' + (await resp2.text()));
+        const plan = await resp2.json();
+
+        // Render nearby dishes
+        const nearbySection = document.getElementById('nearbyDishes');
+        const dishesGrid = document.getElementById('dishesGrid');
+        dishesGrid.innerHTML = '';
+
+        if (plan.nearby_dishes && plan.nearby_dishes.length > 0) {
+          plan.nearby_dishes.forEach(dish => {
+            dishesGrid.appendChild(createDishCard(dish));
+          });
+          nearbySection.classList.remove('hidden');
+        } else {
+          nearbySection.classList.add('hidden');
+        }
+
+        // Render the week plan
+        const weekGrid = document.getElementById('weekGrid');
+        weekGrid.innerHTML = '';
+        (plan.week_plan || []).forEach((dayMeals, i) => {
+          const card = createDayCard(i, dayMeals);
+          weekGrid.appendChild(card);
+        });
+
+        // Show results panel with animation
+        document.getElementById('resultsPanel').classList.remove('hidden');
+
+        // Show the toggle button
+        document.getElementById('resultsToggleBtn').style.display = 'flex';
+
+        // Expand the results panel by default when first generated
+        resultsToggleBtn.classList.remove('collapsed');
+        resultsToggleBtn.classList.add('expanded');
+        document.body.classList.add('results-expanded');
+        document.body.classList.remove('results-collapsed');
+
+        // Final bot message
+        const bot = document.createElement('div');
+        bot.className = 'bot-message animate__animated animate__fadeIn';
+        bot.innerHTML = `
+          <div class="avatar">🤖</div>
+          <div class="bubble">
+            <strong>Your personalized plan is ready!</strong>
+            <p>I've created a 7-day meal plan tailored to your health profile.
+            The plan balances nutrition while respecting your preferences.</p>
+            <p class="tip">💡 <em>Tip:</em> You can regenerate with different preferences anytime.</p>
+          </div>
+        `;
+        chatArea.appendChild(bot);
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+      } catch (error) {
+        const errorMsg = document.createElement('div');
+        errorMsg.className = 'bot-message animate__animated animate__fadeIn';
+        errorMsg.innerHTML = `
+          <div class="avatar">⚠️</div>
+          <div class="bubble error">
+            <strong>Something went wrong</strong>
+            <p>${error.message}</p>
+          </div>
+        `;
+        chatArea.appendChild(errorMsg);
+        chatArea.scrollTop = chatArea.scrollHeight;
+      } finally {
+        // Clean up loading states
+        clearInterval(progressInterval);
+        loadingBar.classList.add('hidden');
+        getBtn.disabled = false;
+        document.querySelector('.btn-text').classList.remove('hidden');
+        document.querySelector('.btn-loader').classList.add('hidden');
+      }
+    }
+
+    // Modal logic
+    const aboutBtn = document.getElementById('aboutBtn');
+    const aboutModal = document.getElementById('aboutModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+
+    aboutBtn.addEventListener('click', () => {
+      aboutModal.classList.remove('hidden');
+    });
+
+    closeModalBtn.addEventListener('click', () => {
+      aboutModal.classList.add('hidden');
+    });
+
+    // Close modal if user clicks outside the content box
+    aboutModal.addEventListener('click', (e) => {
+      if (e.target === aboutModal) {
+        aboutModal.classList.add('hidden');
+      }
+    });
+
+    // Initialize UI
+    document.getElementById('getBtn').addEventListener('click', runRecommendation);
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('userForm').reset();
+      document.getElementById('resultsPanel').classList.add('hidden');
+      document.getElementById('weekGrid').innerHTML = '';
+      document.getElementById('dishesGrid').innerHTML = ''; // Clear nearby dishes
+      document.getElementById('nearbyDishes').classList.add('hidden'); // Hide the section
+      document.getElementById('chatArea').innerHTML = '';
+      document.getElementById('resultsToggleBtn').style.display = 'none';
+
+      // Reset metrics
+      document.getElementById('calories').innerText = '—';
+      document.getElementById('protein').innerText = '—';
+      document.getElementById('carbs').innerText = '—';
+      document.getElementById('fats').innerText = '—';
+      document.getElementById('riskBadge').innerText = 'Risk: —';
+      document.getElementById('riskBadge').className = 'risk low';
+
+      // Initial bot message
+      const bot = document.createElement('div');
+      bot.className = 'bot-message animate__animated animate__fadeIn';
+      bot.innerHTML = `
+        <div class="avatar">🤖</div>
+        <div class="bubble">
+          <strong>Hello — I'm your AI nutrition assistant</strong>
+          <p>Share your health details and I'll create a personalized 7-day meal plan
+          optimized for your wellness goals and dietary preferences.</p>
+        </div>
+      `;
+      document.getElementById('chatArea').appendChild(bot);
+    });
+
+    // Initialize
+    document.getElementById('clearBtn').click();
+  </script>
+</body>
+</html>
