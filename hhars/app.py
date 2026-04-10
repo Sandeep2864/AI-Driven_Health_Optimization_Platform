@@ -17,8 +17,14 @@ RISK_MODEL = None
 
 def load_models():
     global REGRESSORS, RISK_MODEL
-    REGRESSORS = joblib.load(os.path.join(MODEL_DIR, "regressors.pkl"))
-    RISK_MODEL = joblib.load(os.path.join(MODEL_DIR, "risk_model.pkl"))
+    # Using absolute paths
+    reg_path = os.path.join(MODEL_DIR, "regressors.pkl")
+    risk_path = os.path.join(MODEL_DIR, "risk_model.pkl")
+    
+    if os.path.exists(reg_path):
+        REGRESSORS = joblib.load(reg_path)
+    if os.path.exists(risk_path):
+        RISK_MODEL = joblib.load(risk_path)
 
 
 @app.route("/")
