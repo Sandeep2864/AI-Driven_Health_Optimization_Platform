@@ -374,7 +374,7 @@ document.getElementById('detectLocationBtn').addEventListener('click', () => {
         await new Promise(resolve => setTimeout(resolve, 3000));
 
         // Call /predict
-        const resp = await fetch('/predict', {
+        const resp = await fetch('/api/predict', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify(data)
@@ -419,7 +419,7 @@ document.getElementById('detectLocationBtn').addEventListener('click', () => {
 
         // Call /recommend (include recommended)
         const payload = {...data, recommended: rec};
-        const resp2 = await fetch('/recommend', {
+        const resp2 = await fetch('api/recommend', {
           method: 'POST',
           headers: {'Content-Type':'application/json'},
           body: JSON.stringify(payload)
