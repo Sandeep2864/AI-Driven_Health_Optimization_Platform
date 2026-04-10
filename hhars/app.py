@@ -33,7 +33,7 @@ def index():
     return render_template("index.html")
 
 
-@app.route("/detect_location", methods=["GET"])
+@app.route("/api/detect_location", methods=["GET"])
 def detect_location():
     try:
         g = geocoder.ip('me')
@@ -48,7 +48,7 @@ def detect_location():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route("/predict", methods=["POST"])
+@app.route("/api/predict", methods=["POST"])
 def predict():
     data = request.json or request.form
     user = {
@@ -119,7 +119,7 @@ def predict():
     })
 
 
-@app.route("/recommend", methods=["POST"])
+@app.route("/api/recommend", methods=["POST"])
 def recommend():
     data = request.json or request.form
     allergies = data.get('allergies', '')
