@@ -136,7 +136,7 @@ def recommend():
             location_data = {'state': location}
 
     # assume client first called /predict to get recommended calories/protein etc.
-    rec = data.get('/api/recommended')  # dict or JSON string
+    rec = data.get('/recommended')  # dict or JSON string
     if not rec:
         return jsonify(
             {'error': 'No recommended targets provided. Call /predict first or include recommended targets.'}), 400
