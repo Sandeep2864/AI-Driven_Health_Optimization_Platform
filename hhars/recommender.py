@@ -7,7 +7,8 @@ import geocoder
 import json
 
 # The dataset is now expected to be in a 'data' folder
-MEALS_CSV = os.path.join("data", "meals_with_time_classification.csv")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MEALS_CSV = os.path.join(BASE_DIR, "data", "meals_with_time_classification.csv")
 
 
 def load_meals():
