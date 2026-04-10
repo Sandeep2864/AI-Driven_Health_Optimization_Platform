@@ -2,6 +2,8 @@ from flask import Flask, request, render_template, jsonify
 import joblib
 import pandas as pd
 import os
+import json
+import serverless_wsgi
 from recommender import load_meals, filter_meals, plan_week
 import geocoder
 
@@ -178,3 +180,6 @@ def recommend():
 
 
 load_models()
+
+def handler(event, context):
+    return serverless_wsgi.handle_request(app, event, context)
