@@ -12,11 +12,18 @@ MEALS_CSV = os.path.join(BASE_DIR, "data", "meals_with_time_classification.csv")
 
 
 def load_meals():
+    if not os.path.exists(MEALS_CSV):
+        print(f"CRITICAL ERROR: Could not find file at {MEALS_CSV}")
+        # Return an empty DataFrame so the app doesn't crash completely
+        return pd.DataFrame(columns=['Food Name', 'State', 'Type', 'Total Calories', 'Total Protein', 'Total Carbs', 'Total Fats', 'Morning', 'Afternoon', 'Night'])
+    
     meals = pd.read_csv(MEALS_CSV)
-    num = ['Total Calories', 'Total Carbs', 'Total Fats', 'Total Protein', 'Total Sugar', 'Total Sodium']
-    for c in num:
-        meals[c] = pd.to_numeric(meals[c], errors='coerce').fillna(0)
-    meals['Allergic Ingredients'] = meals['Allergic Ingredients'].fillna('None')
+    
+    # Standard cleaning logic
+    num_cols = ['Total Calories', 'Total Carbs', 'Total Fats', 'Total Protein']
+    for col in num_cols:
+        if col in meals.columns:
+            meals[col] = pd.to_numeric(meals[col], errors='coerce').fillna(0)
     return meals
 
 
