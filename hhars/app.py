@@ -17,14 +17,15 @@ RISK_MODEL = None
 
 def load_models():
     global REGRESSORS, RISK_MODEL
-    # Using absolute paths
     reg_path = os.path.join(MODEL_DIR, "regressors.pkl")
     risk_path = os.path.join(MODEL_DIR, "risk_model.pkl")
     
     if os.path.exists(reg_path):
         REGRESSORS = joblib.load(reg_path)
+        print("✅ Regressors loaded successfully")
     if os.path.exists(risk_path):
         RISK_MODEL = joblib.load(risk_path)
+        print("✅ Risk model loaded successfully")
 
 
 @app.route("/")
@@ -176,6 +177,4 @@ def recommend():
     })
 
 
-if __name__ == "__main__":
-    load_models()
-    app.run(debug=True, port=5000)
+load_models()
