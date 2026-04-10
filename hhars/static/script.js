@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = {};
     fd.forEach((v,k) => payload[k] = v);
     try {
-      const r1 = await fetch('/predict', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const r1 = await fetch('/api/predict', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!r1.ok) { alert('Predict failed'); return; }
       const pred = await r1.json();
       // show a user message
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // call recommend
       payload.recommended = pred.recommended;
-      const r2 = await fetch('/recommend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const r2 = await fetch('api/recommend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!r2.ok) { alert('Recommendation failed'); return; }
       const plan = await r2.json();
 
