@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultsToggleBtn = document.getElementById('resultsToggleBtn');
 
     /**
-     * ALLERGY TAG LOGIC
+     * ALLERGY TAG LOGIC - Manages visual tags and hidden input
      */
     function updateHiddenAllergies() {
         const values = Array.from(allergyTags.querySelectorAll('.tag')).map(t => t.dataset.value);
@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
         val = (val || '').trim();
         if (!val) return;
         
-        // Prevent duplicates
         const exists = Array.from(allergyTags.querySelectorAll('.tag'))
             .some(t => t.dataset.value.toLowerCase() === val.toLowerCase());
         
@@ -56,10 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    allergyInput.addEventListener('blur', () => {
-        if (allergyInput.value.trim()) addAllergyTag(allergyInput.value.trim());
-    });
-
     /**
      * CHAT UI HELPERS
      */
@@ -84,62 +79,66 @@ document.addEventListener('DOMContentLoaded', () => {
      * MAIN RECOMMENDATION ENGINE
      */
     async function runRecommendation() {
-        // 1. Prepare UI & Data
+        // 1. Prepare Data
         updateHiddenAllergies();
         const formData = new FormData(userForm);
-        const payload = Object.fromEntries(formData.entries());
+        const data = Object.fromEntries(formData.entries());
         
-        // Include browser-detected location if available
         if (window.userLocation) {
-            payload.location = JSON.stringify(window.userLocation);
+            data.location = JSON.stringify(window.userLocation);
         }
 
-        // Loading state
+        // 2. UI Loading State
         getBtn.disabled = true;
         const btnText = getBtn.querySelector('.btn-text');
         const btnLoader = getBtn.querySelector('.btn-loader');
         btnText.classList.add('hidden');
         btnLoader.classList.remove('hidden');
 
-        addChatMessage('user', 'Analyzing my profile and generating a plan...');
+        addChatMessage('user', 'Analyzing my health profile and generating a plan...');
 
         try {
-            // STEP 1: Predict health metrics
+            // STEP 1: Predict health metrics (Backend: /api/predict)
             const r1 = await fetch('/api/predict', { 
                 method: 'POST', 
                 headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify(payload) 
+                body: JSON.stringify(data) 
             });
             
             if (!r1.ok) throw new Error('Health prediction failed.');
             const pred = await r1.json();
 
-            // Display Metrics
+            // Display Predicted Metrics in the Sidebar/Panel
             const rec = pred.recommended || {};
             document.getElementById('calories').innerText = Math.round(rec.Recommended_Calories || 0);
             document.getElementById('protein').innerText = Math.round(rec.Recommended_Protein || 0);
             document.getElementById('carbs').innerText = Math.round(rec.Recommended_Carbs || 0);
             document.getElementById('fats').innerText = Math.round(rec.Recommended_Fats || 0);
 
-            // Update Risk Badge
+            // Update Health Risk Badge
             const risk = pred.health_label || 'Unknown';
             const badge = document.getElementById('riskBadge');
             badge.innerText = `Status: ${risk}`;
             badge.className = 'risk ' + (risk.toLowerCase().includes('poor') ? 'high' : 
                                        (risk.toLowerCase().includes('average') ? 'medium' : 'low'));
 
-            // STEP 2: Get Meal Plan
-            payload.recommended = rec; // Pass predicted targets to recommender
+            // STEP 2: Get Meal Plan (Backend: /api/recommend)
+            // We merge the original user data with the prediction results
+            const recommendationPayload = {
+                ...data,
+                recommended: rec 
+            };
+
             const r2 = await fetch('/api/recommend', { 
                 method: 'POST', 
                 headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify(payload) 
+                body: JSON.stringify(recommendationPayload) 
             });
 
             if (!r2.ok) throw new Error('Meal recommendation failed.');
             const plan = await r2.json();
 
-            // STEP 3: Render Nearby Dishes
+            // STEP 3: Render Nearby Dishes (Local features)
             dishesGrid.innerHTML = '';
             if (plan.nearby_dishes && plan.nearby_dishes.length > 0) {
                 plan.nearby_dishes.forEach(dish => {
@@ -156,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 nearbySection.classList.remove('hidden');
             }
 
-            // STEP 4: Render Weekly Plan
+            // STEP 4: Render Weekly Plan Grid
             weekGrid.innerHTML = '';
             const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
             
@@ -174,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 let dayCalories = 0;
                 dayMeals.forEach(m => {
-                    dayCalories += m.calories;
+                    dayCalories += m.calories || 0;
                     const item = document.createElement('div');
                     item.className = 'meal-item';
                     item.innerHTML = `
@@ -194,14 +193,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 weekGrid.appendChild(card);
             });
 
-            // Reveal Results
+            // Reveal the Results UI
             resultsPanel.classList.remove('hidden');
             resultsToggleBtn.style.display = 'flex';
             
-            addChatMessage('bot', `<strong>Success!</strong> I've generated a 7-day plan optimized for <strong>${Math.round(rec.Recommended_Calories)} calories</strong> per day.`, true);
+            addChatMessage('bot', `<strong>Plan Ready!</strong> I've optimized your meals for <strong>${Math.round(rec.Recommended_Calories)} kcal</strong>.`, true);
 
         } catch (err) {
-            console.error(err);
+            console.error("Workflow Error:", err);
             addChatMessage('bot', `⚠️ Error: ${err.message}`);
         } finally {
             getBtn.disabled = false;
@@ -213,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /**
      * INITIALIZATION & EVENT LISTENERS
      */
-    document.getElementById('getBtn').addEventListener('click', runRecommendation);
+    getBtn.addEventListener('click', runRecommendation);
 
     document.getElementById('clearBtn').addEventListener('click', () => {
         userForm.reset();
@@ -222,10 +221,10 @@ document.addEventListener('DOMContentLoaded', () => {
         resultsPanel.classList.add('hidden');
         resultsToggleBtn.style.display = 'none';
         chatArea.innerHTML = '';
-        addChatMessage('bot', '<strong>Hi — I\'m HHARS.</strong> Your details have been reset. Enter your info to begin!', true);
+        addChatMessage('bot', '<strong>Hi — I\'m HHARS.</strong> Everything has been reset. Ready for a new plan?', true);
     });
 
-    // Handle results panel collapse/expand on mobile
+    // Handle results panel visibility
     resultsToggleBtn.addEventListener('click', () => {
         const isCollapsed = resultsToggleBtn.classList.contains('collapsed');
         if (isCollapsed) {
