@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       // call recommend
       payload.recommended = pred.recommended;
-      const r2 = await fetch('api/recommend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      const r2 = await fetch('/api/recommend', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
       if (!r2.ok) { alert('Recommendation failed'); return; }
       const plan = await r2.json();
 
