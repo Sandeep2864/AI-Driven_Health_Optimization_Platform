@@ -6,7 +6,9 @@ from recommender import load_meals, filter_meals, plan_week
 import geocoder
 
 app = Flask(__name__)
-MODEL_DIR = "models"
+# Update this in app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_DIR = os.path.join(BASE_DIR, "models")
 
 # load models (trained earlier)
 REGRESSORS = None
