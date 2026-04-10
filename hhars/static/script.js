@@ -82,23 +82,39 @@ document.addEventListener('DOMContentLoaded', () => {
       const plan = await r2.json();
 
       // render week
-      const weekGrid = document.getElementById('weekGrid'); weekGrid.innerHTML = '';
-      (plan.week_plan || []).forEach(day => {
-        const card = document.createElement('div'); card.className='day-card';
-        const title = document.createElement('div'); title.className='day-title'; title.innerText = 'Day ' + day.day;
-        card.appendChild(title);
-        const list = document.createElement('div'); list.className='meal-list';
-        (day.meals || []).forEach(m => {
-          const item = document.createElement('div'); item.className='meal-item';
-          item.innerHTML = `<div class="meal-name">${m.name}</div><div class="meal-meta">${m.calories} kcal</div>`;
-          list.appendChild(item);
-        });
-        const footer = document.createElement('div'); footer.className='day-footer';
-        footer.innerText = 'Total: ' + Math.round((day.totals && day.totals.calories) || 0) + ' kcal';
-        card.appendChild(list); card.appendChild(footer);
-        weekGrid.appendChild(card);
-      });
+// Replace the (plan.week_plan || []).forEach section with this:
+(plan.week_plan || []).forEach((dayMeals, index) => {
+  const card = document.createElement('div'); 
+  card.className = 'day-card';
+  
+  const title = document.createElement('div'); 
+  title.className = 'day-title'; 
+  title.innerText = 'Day ' + (index + 1); // Use the index since 'day.day' doesn't exist
+  
+  card.appendChild(title);
+  const list = document.createElement('div'); 
+  list.className = 'meal-list';
+  
+  dayMeals.forEach(m => {
+    const item = document.createElement('div'); 
+    item.className = 'meal-item';
+    item.innerHTML = `<div class="meal-name">${m.name}</div><div class="meal-meta">${m.calories} kcal</div>`;
+    list.appendChild(item);
+  });
+  
+  // Calculate total calories for the day manually or pass it from backend
+  const dailyTotal = dayMeals.reduce((sum, m) => sum + m.calories, 0);
+  
+  const footer = document.createElement('div'); 
+  footer.className = 'day-footer';
+  footer.innerText = 'Total: ' + Math.round(dailyTotal) + ' kcal';
+  
+  card.appendChild(list); 
+  card.appendChild(footer);
+  weekGrid.appendChild(card);
+});
 
+      
       document.getElementById('resultsPanel').classList.remove('hidden');
 
       const bot = document.createElement('div'); bot.className='bot-message';
