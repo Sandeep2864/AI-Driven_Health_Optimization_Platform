@@ -19,9 +19,12 @@ except ImportError as e:
     print(f"❌ Error: {e}")
 
 # This configuration is what makes the CSS work
-app = Flask(__name__, 
-            template_folder="static", 
-            static_folder="static")
+app = Flask(
+    __name__, 
+    template_folder="static",   # 1. Where to find index.html
+    static_folder="static",     # 2. Where the physical CSS/Images are
+    static_url_path="/static"   # 3. The URL prefix used in your HTML
+)
 CORS(app)
 
 # --- MODEL LOADING ---
