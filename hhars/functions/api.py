@@ -45,7 +45,7 @@ load_models()
 
 @app.route("/")
 def index():
-    return "Health API is active"
+    return render_template("index.html")
 
 @app.route("/api/detect_location", methods=["GET"])
 def detect_location():
