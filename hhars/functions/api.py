@@ -13,7 +13,7 @@ app = Flask(__name__)
 # --- SERVERLESS PATHING LOGIC ---
 # This ensures the script finds the models even when running on Netlify
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "models"))
+MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "models"))
 
 # Initialize model variables
 REGRESSORS = None
