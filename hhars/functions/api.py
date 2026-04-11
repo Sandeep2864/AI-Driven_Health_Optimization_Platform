@@ -3,21 +3,29 @@ import joblib
 import pandas as pd
 import os
 import json
-import serverless_wsgi
 import geocoder
-# Important: recommender.py must be moved into the functions/ folder too
-from recommender import load_meals, filter_meals, plan_week
+import sys
 
-app = Flask(__name__, 
-            template_folder="../static", 
-            static_folder="../static")
-
-# --- SERVERLESS PATHING LOGIC ---
-# This ensures the script finds the models even when running on Netlify
+# --- DYNAMIC PATHING CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "models"))
+PARENT_DIR = os.path.abspath(os.path.join(BASE_DIR, ".."))
+MODEL_DIR = os.path.join(PARENT_DIR, "models")
 
-# Initialize model variables
+# Inject PARENT_DIR into sys.path so we can import recommender.py
+if PARENT_DIR not in sys.path:
+    sys.path.insert(0, PARENT_DIR)
+
+# Import logic from recommender.py
+try:
+    from recommender import load_meals, filter_meals, plan_week
+except ImportError as e:
+    print(f"❌ Critical Error: Could not find recommender.py. {e}")
+
+app = Flask(__name__,
+            template_folder=os.path.join(PARENT_DIR, "static"),
+            static_folder=os.path.join(PARENT_DIR, "static"))
+
+# --- MODEL LOADING ---
 REGRESSORS = None
 RISK_MODEL = None
 
@@ -25,14 +33,14 @@ def load_models():
     global REGRESSORS, RISK_MODEL
     reg_path = os.path.join(MODEL_DIR, "regressors.pkl")
     risk_path = os.path.join(MODEL_DIR, "risk_model.pkl")
-    
+
     if os.path.exists(reg_path):
         try:
             REGRESSORS = joblib.load(reg_path)
             print("✅ Regressors loaded successfully")
         except Exception as e:
             print(f"❌ Error loading regressors: {e}")
-            
+
     if os.path.exists(risk_path):
         try:
             RISK_MODEL = joblib.load(risk_path)
@@ -40,8 +48,10 @@ def load_models():
         except Exception as e:
             print(f"❌ Error loading risk model: {e}")
 
-# Pre-load models when the function starts
+# Pre-load models on startup
 load_models()
+
+# --- ROUTES ---
 
 @app.route("/")
 def index():
@@ -79,13 +89,10 @@ def predict():
     }
 
     X_df = pd.DataFrame([user])
-
-    # Predict nutrition targets
     preds = {}
     for k, model in REGRESSORS.items():
         preds[k] = float(model.predict(X_df)[0])
 
-    # Health Score Logic
     score = 100
     bmi = user['BMI']
     if bmi < 18.5 or bmi > 30: score -= 25
@@ -100,10 +107,8 @@ def predict():
     elif sleep < 7: score -= 5
 
     if user['Chronic_Disease'].lower() != 'none': score -= 20
-
     score = max(0, min(100, score))
 
-    # Health Labels
     if score >= 85: health_label = "Excellent"
     elif score >= 70: health_label = "Good"
     elif score >= 50: health_label = "Average"
@@ -131,11 +136,10 @@ def recommend():
         except:
             location_data = {'state': location}
 
-    # Use the key 'recommended' as sent by your JavaScript
     rec = data.get('recommended')
     if not rec:
         return jsonify({'error': 'Missing targets. Run prediction first.'}), 400
-    
+
     target = {
         'calories': float(rec.get('Recommended_Calories', rec.get('RecommendedCalories', 2000))),
         'protein': float(rec.get('Recommended_Protein', 100)),
@@ -170,6 +174,5 @@ def recommend():
         'location': location_data
     })
 
-# --- NETLIFY HANDLER ---
-def handler(event, context):
-    return serverless_wsgi.handle_request(app, event, context)
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
