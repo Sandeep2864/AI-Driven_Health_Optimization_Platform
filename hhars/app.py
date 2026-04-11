@@ -5,7 +5,6 @@ import pandas as pd
 import os
 import json
 import geocoder
-import sys
 
 # --- PATHING CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +15,7 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 try:
     from recommender import load_meals, filter_meals, plan_week
 except ImportError as e:
-    print(f"❌ Critical Error: Could not find recommender.py in root. {e}")
+    print(f"❌ Critical Error: Could not find recommender.py. {e}")
 
 app = Flask(__name__, 
             template_folder="static", 
@@ -36,18 +35,18 @@ def load_models():
     if os.path.exists(reg_path):
         try:
             REGRESSORS = joblib.load(reg_path)
-            print("✅ Regressors loaded successfully")
+            print("✅ Regressors loaded")
         except Exception as e:
-            print(f"❌ Error loading regressors: {e}")
+            print(f"❌ Regressor load error: {e}")
 
     if os.path.exists(risk_path):
         try:
             RISK_MODEL = joblib.load(risk_path)
-            print("✅ Risk model loaded successfully")
+            print("✅ Risk model loaded")
         except Exception as e:
-            print(f"❌ Error loading risk model: {e}")
+            print(f"❌ Risk model load error: {e}")
 
-# Pre-load models on startup
+# Load models on server start
 load_models()
 
 # --- ROUTES ---
@@ -61,11 +60,7 @@ def detect_location():
     try:
         g = geocoder.ip('me')
         if g.ok:
-            return jsonify({
-                'state': g.state,
-                'country': g.country,
-                'latlng': g.latlng
-            })
+            return jsonify({'state': g.state, 'country': g.country, 'latlng': g.latlng})
         return jsonify({'error': 'Location detection failed'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -73,106 +68,68 @@ def detect_location():
 @app.route("/api/predict", methods=["POST"])
 def predict():
     if REGRESSORS is None:
-        return jsonify({'error': 'Machine Learning models not found on server'}), 500
+        return jsonify({'error': 'ML models not found on server'}), 500
 
     data = request.json or request.form
-    user = {
+    user_data = {
         'Age': float(data.get('age', 30)),
-        'Gender': data.get('gender', 'Other'),
+        'Gender': data.get('gender', 'Male'),
         'BMI': float(data.get('bmi', 24.0)),
         'Daily_Steps': float(data.get('daily_steps', 3000)),
         'Exercise_Frequency': float(data.get('exercise_freq', 2)),
         'Sleep_Hours': float(data.get('sleep_hours', 7)),
-        'Dietary_Habits': data.get('diet', 'Regular'),
+        'Dietary_Habits': data.get('diet', 'Vegetarian'),
         'Chronic_Disease': data.get('chronic', 'None')
     }
 
-    X_df = pd.DataFrame([user])
-    preds = {}
-    for k, model in REGRESSORS.items():
-        preds[k] = float(model.predict(X_df)[0])
+    X_df = pd.DataFrame([user_data])
+    preds = {k: float(model.predict(X_df)[0]) for k, model in REGRESSORS.items()}
 
-    # --- FULL SCORING LOGIC (Restored) ---
-    score = 100
-    bmi = user['BMI']
-    if bmi < 18.5 or bmi > 30: score -= 25
-    elif bmi >= 25: score -= 10
-
-    steps = user['Daily_Steps']
-    if steps < 3000: score -= 20
-    elif steps < 6000: score -= 10
-
-    sleep = user['Sleep_Hours']
-    if sleep < 6: score -= 15
-    elif sleep < 7: score -= 5
-
-    if user['Chronic_Disease'].lower() != 'none': score -= 20
-    score = max(0, min(100, score))
-
-    if score >= 85: health_label = "Excellent"
-    elif score >= 70: health_label = "Good"
-    elif score >= 50: health_label = "Average"
-    elif score >= 30: health_label = "Poor"
-    else: health_label = "Worst"
+    # Calculate Health Label
+    risk_val = "Low"
+    if RISK_MODEL:
+        risk_val = RISK_MODEL.predict(X_df)[0]
 
     return jsonify({
         'recommended': preds,
-        'health_score': score,
-        'health_label': health_label
+        'health_label': risk_val
     })
 
 @app.route("/api/recommend", methods=["POST"])
 def recommend():
     data = request.json or request.form
-    allergies = data.get('allergies', '')
-    allergy_list = [a.strip() for a in allergies.split(',')] if allergies else []
-    cuisine = data.get('cuisine', None)
-    location = data.get('location', None)
-
-    location_data = None
-    if location:
-        try:
-            location_data = json.loads(location) if isinstance(location, str) else location
-        except:
-            location_data = {'state': location}
-
-    rec = data.get('recommended')
-    if not rec:
-        return jsonify({'error': 'Missing targets. Run prediction first.'}), 400
-
+    rec = data.get('recommended', {})
+    
     target = {
-        'calories': float(rec.get('Recommended_Calories', rec.get('RecommendedCalories', 2000))),
+        'calories': float(rec.get('Recommended_Calories', 2000)),
         'protein': float(rec.get('Recommended_Protein', 100)),
         'carbs': float(rec.get('Recommended_Carbs', 250)),
         'fats': float(rec.get('Recommended_Fats', 70))
     }
 
     meals = load_meals()
-    filtered = filter_meals(meals, allergies=allergy_list, cuisine_pref=cuisine, location=location_data)
+    filtered = filter_meals(
+        meals, 
+        allergies=data.get('allergies', ''),
+        cuisine_pref=data.get('cuisine'),
+        location={'state': data.get('location')}
+    )
 
-    nearby_dishes = filtered[['Food Name', 'State', 'Type']].head(10).to_dict(orient='records')
-    week_plan = plan_week(filtered, target)
-
-    # --- FULL FORMATTING LOGIC (Restored) ---
-    out = []
-    for day in week_plan:
-        day_meals = []
-        for m in day:
-            day_meals.append({
-                'name': m['Food Name'],
-                'state': m['State'],
-                'type': m['Type'],
-                'calories': m['Total Calories'],
-                'protein': m['Total Protein'],
-                'carbs': m['Total Carbs'],
-                'fats': m['Total Fats'],
-            })
-        out.append(day_meals)
+    week_plan_raw = plan_week(filtered, target)
+    
+    # Format for JSON response
+    formatted_plan = []
+    for day in week_plan_raw:
+        formatted_plan.append([{
+            'name': m['Food Name'],
+            'calories': m['Total Calories'],
+            'protein': m['Total Protein'],
+            'type': m['Type']
+        } for m in day])
 
     return jsonify({
-        'week_plan': out,
-        'nearby_dishes': nearby_dishes,
-        'location': location_data
+        'week_plan': formatted_plan,
+        'nearby_dishes': filtered[['Food Name', 'State']].head(5).to_dict(orient='records')
     })
 
 if __name__ == "__main__":
