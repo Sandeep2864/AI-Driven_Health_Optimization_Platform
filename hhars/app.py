@@ -1,4 +1,5 @@
 from flask import Flask, request, render_template, jsonify
+from flask_cors import CORS
 import joblib
 import pandas as pd
 import os
@@ -6,13 +7,12 @@ import json
 import geocoder
 import sys
 
-# --- SIMPLIFIED PATHING CONFIGURATION ---
-# Since this file is now in the root (hhars/), BASE_DIR is the root.
+# --- PATHING CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-# Import logic from recommender.py (now in the same directory)
+# Import logic from recommender.py
 try:
     from recommender import load_meals, filter_meals, plan_week
 except ImportError as e:
@@ -20,7 +20,9 @@ except ImportError as e:
 
 app = Flask(__name__, 
             template_folder="static", 
-            static_folder="static")
+            static_folder="static",
+            static_url_path="/static")
+CORS(app)
 
 # --- MODEL LOADING ---
 REGRESSORS = None
@@ -52,7 +54,6 @@ load_models()
 
 @app.route("/")
 def index():
-    # Looks for index.html inside the 'static' folder
     return render_template("index.html")
 
 @app.route("/api/detect_location", methods=["GET"])
@@ -91,7 +92,7 @@ def predict():
     for k, model in REGRESSORS.items():
         preds[k] = float(model.predict(X_df)[0])
 
-    # Basic scoring logic
+    # --- FULL SCORING LOGIC (Restored) ---
     score = 100
     bmi = user['BMI']
     if bmi < 18.5 or bmi > 30: score -= 25
@@ -152,6 +153,7 @@ def recommend():
     nearby_dishes = filtered[['Food Name', 'State', 'Type']].head(10).to_dict(orient='records')
     week_plan = plan_week(filtered, target)
 
+    # --- FULL FORMATTING LOGIC (Restored) ---
     out = []
     for day in week_plan:
         day_meals = []
