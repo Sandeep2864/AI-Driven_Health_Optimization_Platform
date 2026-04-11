@@ -19,8 +19,9 @@ except ImportError as e:
     print(f"❌ Critical Error: Could not find recommender.py in root. {e}")
 
 app = Flask(__name__,
-            template_folder=STATIC_DIR,
-            static_folder=STATIC_DIR)
+            template_folder="static",
+            static_folder="static",
+            static_url_path="/static")
 
 # --- MODEL LOADING ---
 REGRESSORS = None
