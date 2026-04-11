@@ -1,5 +1,4 @@
 from flask import Flask, request, render_template, jsonify
-from flask_cors import CORS
 import joblib
 import pandas as pd
 import os
@@ -7,25 +6,21 @@ import json
 import geocoder
 import sys
 
-# --- PATHING CONFIGURATION ---
-# Simplified to help Flask find your 'static' folder easily
+# --- SIMPLIFIED PATHING CONFIGURATION ---
+# Since this file is now in the root (hhars/), BASE_DIR is the root.
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(BASE_DIR, "models")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
 
-# Import logic from recommender.py
+# Import logic from recommender.py (now in the same directory)
 try:
     from recommender import load_meals, filter_meals, plan_week
 except ImportError as e:
-    print(f"❌ Error: {e}")
+    print(f"❌ Critical Error: Could not find recommender.py in root. {e}")
 
-# This configuration is what makes the CSS work
-app = Flask(
-    __name__, 
-    template_folder="static",   # 1. Where to find index.html
-    static_folder="static",     # 2. Where the physical CSS/Images are
-    static_url_path="/static"   # 3. The URL prefix used in your HTML
-)
-CORS(app)
+app = Flask(__name__, 
+            template_folder="static", 
+            static_folder="static")
 
 # --- MODEL LOADING ---
 REGRESSORS = None
@@ -39,22 +34,25 @@ def load_models():
     if os.path.exists(reg_path):
         try:
             REGRESSORS = joblib.load(reg_path)
+            print("✅ Regressors loaded successfully")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"❌ Error loading regressors: {e}")
 
     if os.path.exists(risk_path):
         try:
             RISK_MODEL = joblib.load(risk_path)
+            print("✅ Risk model loaded successfully")
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"❌ Error loading risk model: {e}")
 
+# Pre-load models on startup
 load_models()
 
 # --- ROUTES ---
 
 @app.route("/")
 def index():
-    # Flask looks for index.html inside the 'static' folder
+    # Looks for index.html inside the 'static' folder
     return render_template("index.html")
 
 @app.route("/api/detect_location", methods=["GET"])
@@ -62,25 +60,29 @@ def detect_location():
     try:
         g = geocoder.ip('me')
         if g.ok:
-            return jsonify({'state': g.state, 'country': g.country, 'latlng': g.latlng})
-        return jsonify({'error': 'failed'}), 400
+            return jsonify({
+                'state': g.state,
+                'country': g.country,
+                'latlng': g.latlng
+            })
+        return jsonify({'error': 'Location detection failed'}), 400
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
     if REGRESSORS is None:
-        return jsonify({'error': 'Models not loaded'}), 500
+        return jsonify({'error': 'Machine Learning models not found on server'}), 500
 
     data = request.json or request.form
     user = {
         'Age': float(data.get('age', 30)),
-        'Gender': data.get('gender', 'Male'),
+        'Gender': data.get('gender', 'Other'),
         'BMI': float(data.get('bmi', 24.0)),
         'Daily_Steps': float(data.get('daily_steps', 3000)),
         'Exercise_Frequency': float(data.get('exercise_freq', 2)),
         'Sleep_Hours': float(data.get('sleep_hours', 7)),
-        'Dietary_Habits': data.get('diet', 'Vegetarian'),
+        'Dietary_Habits': data.get('diet', 'Regular'),
         'Chronic_Disease': data.get('chronic', 'None')
     }
 
@@ -89,7 +91,7 @@ def predict():
     for k, model in REGRESSORS.items():
         preds[k] = float(model.predict(X_df)[0])
 
-    # --- HEALTH SCORING LOGIC ---
+    # Basic scoring logic
     score = 100
     bmi = user['BMI']
     if bmi < 18.5 or bmi > 30: score -= 25
@@ -123,8 +125,8 @@ def recommend():
     data = request.json or request.form
     allergies = data.get('allergies', '')
     allergy_list = [a.strip() for a in allergies.split(',')] if allergies else []
-    cuisine = data.get('cuisine')
-    location = data.get('location')
+    cuisine = data.get('cuisine', None)
+    location = data.get('location', None)
 
     location_data = None
     if location:
@@ -134,8 +136,11 @@ def recommend():
             location_data = {'state': location}
 
     rec = data.get('recommended')
+    if not rec:
+        return jsonify({'error': 'Missing targets. Run prediction first.'}), 400
+
     target = {
-        'calories': float(rec.get('Recommended_Calories', 2000)),
+        'calories': float(rec.get('Recommended_Calories', rec.get('RecommendedCalories', 2000))),
         'protein': float(rec.get('Recommended_Protein', 100)),
         'carbs': float(rec.get('Recommended_Carbs', 250)),
         'fats': float(rec.get('Recommended_Fats', 70))
@@ -147,7 +152,6 @@ def recommend():
     nearby_dishes = filtered[['Food Name', 'State', 'Type']].head(10).to_dict(orient='records')
     week_plan = plan_week(filtered, target)
 
-    # Manual Week Plan Formatting
     out = []
     for day in week_plan:
         day_meals = []
